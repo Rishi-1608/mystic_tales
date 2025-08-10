@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Animated Hero Section -->
+<div class="hero-section animate__animated animate__fadeIn">
+    <div class="hero-content">
+        <h1 class="animate__animated animate__fadeInDown">Chronicles of the Ancients</h1>
+        <p class="lead animate__animated animate__fadeIn animate__delay-1s">Weave your legend with mythical companions</p>
+        <a href="/characters" class="btn btn-fantasy btn-lg mt-3 animate__animated animate__fadeInUp animate__delay-1s">
+            <i class="fas fa-scroll me-2"></i>Begin Your Quest
+            <span class="btn-glow"></span>
+        </a>
+    </div>
+    <div class="hero-scroll-hint">
+        <i class="fas fa-chevron-down bounce"></i>
+    </div>
+</div>
+
+<!-- Features Section with Animated Cards -->
+<div class="container mt-5">
+    <div class="section-header text-center mb-5">
+        <h2 class="section-title">Embark on Your Journey</h2>
+        <div class="divider">
+            <div class="divider-line"></div>
+            <div class="divider-icon"><i class="fas fa-dragon"></i></div>
+            <div class="divider-line"></div>
+        </div>
+    </div>
+
+    <div class="row g-4 feature-row">
+        <div class="col-md-4">
+            <div class="feature-card animate__animated" data-animation="fadeInUp">
+                <div class="feature-icon">
+                    <i class="fas fa-book-open"></i>
+                    <div class="icon-glow"></div>
+                </div>
+                <h3>Living Stories</h3>
+                <p>Your choices shape dynamic narratives that remember your journey through mystical realms</p>
+                <div class="feature-ornament"></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card animate__animated" data-animation="fadeInUp" data-delay="0.2s">
+                <div class="feature-icon">
+                    <i class="fas fa-hat-wizard"></i>
+                    <div class="icon-glow"></div>
+                </div>
+                <h3>Enchanted Beings</h3>
+                <p>Interact with AI personas that evolve and remember, creating truly immersive experiences</p>
+                <div class="feature-ornament"></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card animate__animated" data-animation="fadeInUp" data-delay="0.4s">
+                <div class="feature-icon">
+                    <i class="fas fa-dungeon"></i>
+                    <div class="icon-glow"></div>
+                </div>
+                <h3>Boundless Realms</h3>
+                <p>Explore infinite worlds from shadowy dungeons to celestial kingdoms of light</p>
+                <div class="feature-ornament"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Testimonial Section -->
+    <div class="testimonial-section mt-6">
+        <div class="testimonial-quote">
+            <i class="fas fa-quote-left quote-mark"></i>
+            <p class="quote-text">Never before have I encountered such lifelike characters in a digital realm. The wizard Eldrin spoke to me as if he'd known me for centuries.</p>
+            <div class="quote-author">
+                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop" alt="User" class="author-avatar">
+                <div class="author-info">
+                    <h4>Gareth the Curious</h4>
+                    <p>Scholar of Arcane Arts</p>
+                </div>
+            </div>
+            <i class="fas fa-quote-right quote-mark"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Call to Action -->
+<div class="cta-section">
+    <div class="container text-center py-5">
+        <h2 class="cta-title mb-4">Ready to Begin Your Adventure?</h2>
+        <a href="/characters" class="btn btn-fantasy btn-xl">
+            <i class="fas fa-dragon me-2"></i>Choose Your Companion Now
+            <span class="btn-glow"></span>
+        </a>
+    </div>
+</div>
+{% endblock %}

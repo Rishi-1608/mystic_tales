@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="text-center mb-5">
+        <h1 class="fantasy-title">Choose Your Companion</h1>
+        <p class="lead">Select a character to begin your adventure</p>
+    </div>
+    
+    <div class="row">
+        {% for id, character in characters.items() %}
+        <div class="col-md-4 mb-4">
+    <div class="character-card">
+        <img src="{{ character.avatar }}" alt="{{ character.name }}" class="character-image-card mb-3">
+                <h3>{{ character.name }}</h3>
+                <p>{{ character.description }}</p>
+                <div class="d-grid">
+                    <a href="{{ url_for('new_story', character=id) }}" class="btn btn-fantasy">
+                        <i class="fas fa-comments me-2"></i>Converse
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

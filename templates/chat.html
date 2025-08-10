@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="character-header">
+        <img src="{{ character.avatar }}" alt="{{ character.name }}" class="character-avatar">
+        <h2>{{ character.name }}</h2>
+        <a href="{{ url_for('new_story', character=character.name.lower()) }}" class="btn btn-sm btn-fantasy-outline">
+            <i class="fas fa-redo me-1"></i>Restart
+        </a>
+    </div>
+    
+    <div class="chat-messages" id="chat-messages">
+        {% for message in story %}
+        <div class="message {% if message.sender == 'user' %}user-message{% else %}bot-message{% endif %}">
+            <img src="{% if message.sender == 'user' %}/static/images/user-avatar.png{% else %}{{ character.avatar }}{% endif %}" 
+                 class="message-avatar">
+            <div class="message-content">
+                {{ message.text }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="chat-input-container">
+        <input type="text" id="user-input" placeholder="Speak your mind..." class="form-control">
+        <button id="send-button" class="btn btn-fantasy">Send</button>
+    </div>
+</div>
+{% endblock %}
