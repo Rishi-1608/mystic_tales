@@ -1,3 +1,3 @@
 Flask==3.0.0
 gunicorn==21.2.0
-google-generativeai==gemini-2.0-flash   # or whatever version gets installed
+google-generativeai== 0.8.5   # or whatever version gets installed

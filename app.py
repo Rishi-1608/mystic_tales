@@ -8,13 +8,16 @@ import random
 import string
 import mysql.connector
 
-def get_db_connection():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="",   # set your DB password
-        database="mystic_tales"
-    )
+
+import os
+
+db = mysql.connector.connect(
+    host=os.getenv("DB_HOST"),
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASS"),
+    database=os.getenv("DB_NAME"),
+    port=3306
+)
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
