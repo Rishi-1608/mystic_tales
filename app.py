@@ -11,13 +11,15 @@ import mysql.connector
 
 import os
 
-db = mysql.connector.connect(
-    host=os.getenv("DB_HOST"),
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASS"),
-    database=os.getenv("DB_NAME"),
-    port=3306
-)
+def get_db_connection():
+    return mysql.connector.connect(
+        host=os.environ.get("DB_HOST", "127.0.0.1"),
+        user=os.environ.get("DB_USER", "root"),
+        password=os.environ.get("DB_PASS", ""),
+        database=os.environ.get("DB_NAME", ""),
+        port=int(os.environ.get("DB_PORT", 3306)),
+        # optional: use_pure=True
+    )
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
