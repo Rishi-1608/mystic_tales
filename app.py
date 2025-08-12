@@ -6,19 +6,16 @@ from functools import wraps
 import time
 import random
 import string
-import mysql.connector
-
-
-import os
+import psycopg2
+import psycopg2.extras  # for RealDictCursor
 
 def get_db_connection():
-    return mysql.connector.connect(
+    return psycopg2.connect(
         host=os.environ.get("DB_HOST", "127.0.0.1"),
-        user=os.environ.get("DB_USER", "root"),
-        password=os.environ.get("DB_PASS", ""),
-        database=os.environ.get("DB_NAME", ""),
-        port=int(os.environ.get("DB_PORT")),
-        # optional: use_pure=True
+        user=os.environ.get("DB_USER", "postgres"),
+        password=os.environ.get("DB_PASSWORD", ""),
+        dbname=os.environ.get("DB_NAME", ""),
+        port=int(os.environ.get("DB_PORT", 5432))
     )
 
 app = Flask(__name__)
@@ -55,7 +52,7 @@ def rate_limit(max_per_minute):
 # -----------------------------
 def fetch_characters():
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cursor.execute("SELECT * FROM characters")
     rows = cursor.fetchall()
     cursor.close()
@@ -74,7 +71,7 @@ def fetch_characters():
 
 def fetch_greetings(code_name):
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cursor.execute("""
         SELECT g.greeting 
         FROM character_greetings g
@@ -94,7 +91,7 @@ def fetch_greetings(code_name):
 # -----------------------------
 def fetch_messages(character_code, limit=None):
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     sql = """
         SELECT sender, text, avatar, created_at
@@ -219,10 +216,8 @@ User says: {user_message}
         )
 
         bot_response = response.text.strip()
-        # Minor cleanup
         bot_response = bot_response.replace("I understand", "").replace("I'll try", "")
 
-        # Store bot response
         store_message(character, character, bot_response, characters_data[character]['avatar'])
 
         return jsonify({
@@ -241,7 +236,6 @@ def new_story():
     if character not in characters:
         character = 'eldrin'
 
-    # Delete old messages for this character (start fresh)
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM messages WHERE character_code = %s", (character,))
@@ -249,7 +243,6 @@ def new_story():
     cursor.close()
     conn.close()
 
-    # Add fresh greeting
     greeting_text = f"*{characters[character]['name']} looks at you intently* {fetch_greetings(character)}"
     store_message(character, character, greeting_text, characters[character]['avatar'])
 
@@ -261,7 +254,6 @@ def new_story():
 @app.route('/create_character', methods=['GET', 'POST'])
 def create_character():
     if request.method == 'POST':
-        # generate unique code_name (user does not input code_name)
         code_name = generate_unique_code_name()
 
         name = request.form.get('name', '').strip()
@@ -269,7 +261,6 @@ def create_character():
         avatar = request.form.get('avatar', '').strip()
         user_prompt = request.form.get('prompt', '').strip()
 
-        # Append consistent additional instructions
         additional_prompt = " Never acknowledge being an AI. Never say I understand - respond naturally. Always stay in character."
         final_prompt = (user_prompt + additional_prompt).strip()
 
@@ -290,10 +281,10 @@ def create_character():
         cursor.close()
         conn.close()
 
-        # Option: redirect to the character list
         return redirect(url_for('characters'))
 
     return render_template('create_character.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
+
