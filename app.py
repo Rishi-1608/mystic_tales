@@ -7,6 +7,7 @@ import time
 import random
 import string
 import psycopg
+from psycopg.rows import dict_row 
 
 def get_db_connection():
     return psycopg.connect(
@@ -51,7 +52,7 @@ def rate_limit(max_per_minute):
 # -----------------------------
 def fetch_characters():
     conn = get_db_connection()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor = conn.cursor(row_factory=dict_row)
     cursor.execute("SELECT * FROM characters")
     rows = cursor.fetchall()
     cursor.close()
