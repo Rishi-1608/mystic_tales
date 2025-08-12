@@ -7,7 +7,6 @@ import time
 import random
 import string
 import psycopg
-import psycopg.extras  # for RealDictCursor
 
 def get_db_connection():
     return psycopg.connect(
