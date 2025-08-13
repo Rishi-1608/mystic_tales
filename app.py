@@ -216,20 +216,27 @@ User says: {user_message}
 
 @app.route('/new_story')
 def new_story():
-    character = request.args.get('character', 'eldrin')
+    req_character = request.args.get('character', 'eldrin')
     characters = fetch_characters()
-    if character not in characters:
-        character = 'eldrin'
 
+    # Ensure we only use valid character code_name
+    if req_character not in characters:
+        req_character = 'eldrin'
+
+    # Delete all messages for this character_code
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("DELETE FROM messages WHERE character_code = %s", (character,))
+            cursor.execute(
+                "DELETE FROM messages WHERE character_code = %s",
+                (req_character,)
+            )
         conn.commit()
 
-    greeting_text = f"*{characters[character]['name']} looks at you intently* {fetch_greetings(character)}"
-    store_message(character, character, greeting_text, characters[character]['avatar'])
+    # Insert a fresh greeting
+    greeting_text = f"*{characters[req_character]['name']} looks at you intently* {fetch_greetings(req_character)}"
+    store_message(req_character, req_character, greeting_text, characters[req_character]['avatar'])
 
-    return redirect(url_for('chat', character=character))
+    return redirect(url_for('chat', character=req_character))
 
 # -----------------------------
 # Create Character
