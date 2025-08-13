@@ -7,8 +7,11 @@ import time
 import random
 import string
 import psycopg
-from psycopg.rows import dict_row 
+from psycopg.rows import dict_row
 
+# -----------------------------
+# DB connection helper
+# -----------------------------
 def get_db_connection():
     return psycopg.connect(
         host=os.environ.get("DB_HOST", "127.0.0.1"),
@@ -51,36 +54,33 @@ def rate_limit(max_per_minute):
 # Helpers: characters, greetings
 # -----------------------------
 def fetch_characters():
-    conn = get_db_connection()
-    cursor = conn.cursor(row_factory=dict_row)
-    cursor.execute("SELECT * FROM characters")
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute("SELECT * FROM characters")
+            rows = cursor.fetchall()
 
-    characters = {}
-    for row in rows:
-        characters[row['code_name']] = {
+    characters = {
+        row['code_name']: {
             "id": row['id'],
             "name": row['name'],
             "description": row['description'],
             "avatar": row['avatar'],
             "prompt": row['prompt']
         }
+        for row in rows
+    }
     return characters
 
 def fetch_greetings(code_name):
-    conn = get_db_connection()
-    cursor = conn.cursor(row_factory=dict_row)
-    cursor.execute("""
-        SELECT g.greeting 
-        FROM character_greetings g
-        JOIN characters c ON g.character_id = c.id
-        WHERE c.code_name = %s
-    """, (code_name,))
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute("""
+                SELECT g.greeting 
+                FROM character_greetings g
+                JOIN characters c ON g.character_id = c.id
+                WHERE c.code_name = %s
+            """, (code_name,))
+            rows = cursor.fetchall()
 
     if not rows:
         return "Greetings."
@@ -90,52 +90,43 @@ def fetch_greetings(code_name):
 # Messages storage
 # -----------------------------
 def fetch_messages(character_code, limit=None):
-    conn = get_db_connection()
-    cursor = conn.cursor(row_factory=dict_row)
+    with get_db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            sql = """
+                SELECT sender, text, avatar, created_at
+                FROM messages
+                WHERE character_code = %s
+                ORDER BY created_at ASC
+            """
+            params = [character_code]
+            if limit:
+                sql += " LIMIT %s"
+                params.append(limit)
 
-    sql = """
-        SELECT sender, text, avatar, created_at
-        FROM messages
-        WHERE character_code = %s
-        ORDER BY created_at ASC
-    """
-    params = [character_code]
-    if limit:
-        sql += " LIMIT %s"
-        params.append(limit)
-
-    cursor.execute(sql, tuple(params))
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
+            cursor.execute(sql, tuple(params))
+            rows = cursor.fetchall()
     return rows
 
 def store_message(character_code, sender, text, avatar=None):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO messages (character_code, sender, text, avatar)
-        VALUES (%s, %s, %s, %s)
-    """, (character_code, sender, text, avatar))
-    conn.commit()
-    cursor.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO messages (character_code, sender, text, avatar)
+                VALUES (%s, %s, %s, %s)
+            """, (character_code, sender, text, avatar))
+        conn.commit()
 
 # -----------------------------
 # Unique code_name generator
 # -----------------------------
 def generate_unique_code_name(prefix="char_", length=6):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        while True:
-            random_code = prefix + ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
-            cursor.execute("SELECT id FROM characters WHERE code_name = %s", (random_code,))
-            if cursor.fetchone() is None:
-                return random_code
-    finally:
-        cursor.close()
-        conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            while True:
+                random_code = prefix + ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
+                cursor.execute("SELECT id FROM characters WHERE code_name = %s", (random_code,))
+                if cursor.fetchone() is None:
+                    return random_code
 
 # -----------------------------
 # Routes
@@ -157,10 +148,8 @@ def chat(character):
 
     session['character'] = character
 
-    # Load conversation from DB (per-character chat memory)
     story = fetch_messages(character)
 
-    # If no history, add initial greeting and re-load
     if not story:
         greeting_text = f"*{characters_data[character]['name']} looks at you intently* {fetch_greetings(character)}"
         store_message(character, character, greeting_text, characters_data[character]['avatar'])
@@ -185,14 +174,11 @@ def send_message():
         if character not in characters_data:
             return jsonify({"error": "Character not found"}), 404
 
-        # Save user message into DB
         store_message(character, "user", user_message, None)
 
-        # Get the last N messages for context (format them)
         recent_msgs = fetch_messages(character, limit=10)
         context_text = "\n".join([f"{m['sender']}: {m['text']}" for m in recent_msgs])
 
-        # Build the prompt
         model_prompt = f"""
 {characters_data[character]['prompt']}
 
@@ -202,7 +188,6 @@ Conversation history (most recent up to 10 messages):
 User says: {user_message}
 """
 
-        # Call Gemini (or your configured model)
         model = genai.GenerativeModel('gemini-2.0-flash')
         response = model.generate_content(
             model_prompt,
@@ -236,12 +221,10 @@ def new_story():
     if character not in characters:
         character = 'eldrin'
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM messages WHERE character_code = %s", (character,))
-    conn.commit()
-    cursor.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM messages WHERE character_code = %s", (character,))
+        conn.commit()
 
     greeting_text = f"*{characters[character]['name']} looks at you intently* {fetch_greetings(character)}"
     store_message(character, character, greeting_text, characters[character]['avatar'])
@@ -249,7 +232,7 @@ def new_story():
     return redirect(url_for('chat', character=character))
 
 # -----------------------------
-# Create Character (auto code_name)
+# Create Character
 # -----------------------------
 @app.route('/create_character', methods=['GET', 'POST'])
 def create_character():
@@ -264,22 +247,16 @@ def create_character():
         additional_prompt = " Never acknowledge being an AI. Never say I understand - respond naturally. Always stay in character."
         final_prompt = (user_prompt + additional_prompt).strip()
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
         try:
-            cursor.execute("""
-                INSERT INTO characters (code_name, name, description, avatar, prompt)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (code_name, name, description, avatar, final_prompt))
-            conn.commit()
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO characters (code_name, name, description, avatar, prompt)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (code_name, name, description, avatar, final_prompt))
+                conn.commit()
         except Exception as e:
-            conn.rollback()
-            cursor.close()
-            conn.close()
             return f"Error adding character: {e}", 400
-
-        cursor.close()
-        conn.close()
 
         return redirect(url_for('characters'))
 
@@ -287,4 +264,3 @@ def create_character():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
