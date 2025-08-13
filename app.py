@@ -71,7 +71,7 @@ def fetch_characters():
 
 def fetch_greetings(code_name):
     conn = get_db_connection()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor = conn.cursor(row_factory=dict_row)
     cursor.execute("""
         SELECT g.greeting 
         FROM character_greetings g
@@ -91,7 +91,7 @@ def fetch_greetings(code_name):
 # -----------------------------
 def fetch_messages(character_code, limit=None):
     conn = get_db_connection()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor = conn.cursor(row_factory=dict_row)
 
     sql = """
         SELECT sender, text, avatar, created_at
