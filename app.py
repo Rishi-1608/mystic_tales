@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, session, flash
 import os
 from datetime import timedelta
 import google.generativeai as genai
@@ -8,6 +8,86 @@ import random
 import string
 import psycopg
 from psycopg.rows import dict_row
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+
+# ---- LOGIN REQUIRED DECORATOR ----
+def login_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Please log in to continue.")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return wrapper
+
+# ---- SIGNUP ----
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        username = request.form.get("username").strip()
+        password = request.form.get("password").strip()
+
+        if not username or not password:
+            flash("All fields are required.")
+            return redirect(url_for("signup"))
+
+        password_hash = generate_password_hash(password)
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s)",
+                        (username, password_hash))
+            conn.commit()
+            flash("Signup successful! Please log in.")
+            return redirect(url_for("login"))
+        except psycopg2.Error as e:
+            if e.pgcode == '23505':  # Unique violation
+                flash("Username already exists.")
+            else:
+                flash("Error creating account.")
+            return redirect(url_for("signup"))
+        finally:
+            cur.close()
+            conn.close()
+
+    return render_template("signup.html")
+
+# ---- LOGIN ----
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username").strip()
+        password = request.form.get("password").strip()
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id, password_hash FROM users WHERE username = %s", (username,))
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if user and check_password_hash(user[1], password):
+            session["user_id"] = user[0]
+            session["username"] = username
+            flash("Login successful!")
+            return redirect(url_for("characters"))
+        else:
+            flash("Invalid username or password.")
+            return redirect(url_for("login"))
+
+    return render_template("login.html")
+
+# ---- LOGOUT ----
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been logged out.")
+    return redirect(url_for("home"))
 
 # -----------------------------
 # DB connection helper
@@ -136,11 +216,13 @@ def home():
     return render_template('index.html')
 
 @app.route('/characters')
+@login_required
 def characters():
     characters_data = fetch_characters()
     return render_template('characters.html', characters=characters_data)
 
 @app.route('/chat/<character>')
+@login_required
 def chat(character):
     characters_data = fetch_characters()
     if character not in characters_data:
