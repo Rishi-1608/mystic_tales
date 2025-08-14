@@ -14,6 +14,47 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
+# -----------------------------
+# DB connection helper
+# -----------------------------
+def get_db_connection():
+    return psycopg.connect(
+        host=os.environ.get("DB_HOST", "127.0.0.1"),
+        user=os.environ.get("DB_USER", "postgres"),
+        password=os.environ.get("DB_PASSWORD", ""),
+        dbname=os.environ.get("DB_NAME", ""),
+        port=int(os.environ.get("DB_PORT", 5432))
+    )
+
+app = Flask(__name__)
+app.secret_key = os.urandom(24)
+app.config.update(
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=1),
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax'
+)
+
+genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+
+# -----------------------------
+# Rate limiting decorator
+# -----------------------------
+def rate_limit(max_per_minute):
+    interval = 60 / max_per_minute
+    def decorator(f):
+        last_called = 0
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            nonlocal last_called
+            elapsed = time.time() - last_called
+            if elapsed < interval:
+                time.sleep(interval - elapsed)
+            last_called = time.time()
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
 # ---- LOGIN REQUIRED DECORATOR ----
 def login_required(f):
     @wraps(f)
@@ -89,46 +130,6 @@ def logout():
     flash("You have been logged out.")
     return redirect(url_for("home"))
 
-# -----------------------------
-# DB connection helper
-# -----------------------------
-def get_db_connection():
-    return psycopg.connect(
-        host=os.environ.get("DB_HOST", "127.0.0.1"),
-        user=os.environ.get("DB_USER", "postgres"),
-        password=os.environ.get("DB_PASSWORD", ""),
-        dbname=os.environ.get("DB_NAME", ""),
-        port=int(os.environ.get("DB_PORT", 5432))
-    )
-
-app = Flask(__name__)
-app.secret_key = os.urandom(24)
-app.config.update(
-    PERMANENT_SESSION_LIFETIME=timedelta(hours=1),
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax'
-)
-
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-
-# -----------------------------
-# Rate limiting decorator
-# -----------------------------
-def rate_limit(max_per_minute):
-    interval = 60 / max_per_minute
-    def decorator(f):
-        last_called = 0
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            nonlocal last_called
-            elapsed = time.time() - last_called
-            if elapsed < interval:
-                time.sleep(interval - elapsed)
-            last_called = time.time()
-            return f(*args, **kwargs)
-        return wrapped
-    return decorator
 
 # -----------------------------
 # Helpers: characters, greetings
