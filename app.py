@@ -67,33 +67,38 @@ def login_required(f):
     return wrapper
 
 # ---- SIGNUP ----
-@app.route("/signup", methods=["GET", "POST"])
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
 
-        # Hash password
-        from werkzeug.security import generate_password_hash
+        if not username or not password:
+            flash("All fields are required.")
+            return redirect(url_for("signup"))
+
         password_hash = generate_password_hash(password)
 
+        conn = get_db_connection()
+        cursor = conn.cursor()
         try:
-            with psycopg.connect(db_url) as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
-                        (username, password_hash)
-                    )
-                    conn.commit()
-            flash("Signup successful! Please log in.", "success")
-            return redirect("/login")
+            cursor.execute(
+                "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
+                (username, password_hash)
+            )
+            conn.commit()
+            flash("Signup successful! Please log in.")
+            return redirect(url_for("login"))
 
-        except UniqueViolation:  # ✅ Catch duplicate username
-            flash("Username already exists. Please choose another.", "danger")
-            return render_template("signup.html")
+        except UniqueViolation:
+            flash("Username already exists.")
+            return redirect(url_for("signup"))
+
+        finally:
+            cursor.close()
+            conn.close()
 
     return render_template("signup.html")
-
 # ---- LOGIN ----
 @app.route("/login", methods=["GET", "POST"])
 def login():
