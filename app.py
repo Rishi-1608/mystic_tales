@@ -13,6 +13,7 @@ from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from psycopg.errors import UniqueViolation 
 
 # -----------------------------
 # DB connection helper
@@ -69,32 +70,27 @@ def login_required(f):
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        username = request.form.get("username").strip()
-        password = request.form.get("password").strip()
+        username = request.form["username"]
+        password = request.form["password"]
 
-        if not username or not password:
-            flash("All fields are required.")
-            return redirect(url_for("signup"))
-
+        # Hash password
+        from werkzeug.security import generate_password_hash
         password_hash = generate_password_hash(password)
 
-        conn = get_db_connection()
-        cur = conn.cursor()
         try:
-            cur.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s)",
-                        (username, password_hash))
-            conn.commit()
-            flash("Signup successful! Please log in.")
-            return redirect(url_for("login"))
-        except psycopg2.Error as e:
-            if e.pgcode == '23505':  # Unique violation
-                flash("Username already exists.")
-            else:
-                flash("Error creating account.")
-            return redirect(url_for("signup"))
-        finally:
-            cur.close()
-            conn.close()
+            with psycopg.connect(db_url) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
+                        (username, password_hash)
+                    )
+                    conn.commit()
+            flash("Signup successful! Please log in.", "success")
+            return redirect("/login")
+
+        except UniqueViolation:  # ✅ Catch duplicate username
+            flash("Username already exists. Please choose another.", "danger")
+            return render_template("signup.html")
 
     return render_template("signup.html")
 
