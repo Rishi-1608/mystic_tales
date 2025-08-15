@@ -3,6 +3,20 @@
 {% block content %}
 <div class="container" style="width: 300px; margin: 0 auto; text-align: center;">
     <h2>Join the Guild</h2>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div style="margin: 10px 0;">
+          {% for message in messages %}
+            <div style="background-color: #ffdddd; border: 1px solid #ff8888; padding: 8px; margin-bottom: 5px; border-radius: 4px;">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
     <form method="POST" style="margin: 20px 0;">
         <div style="margin-bottom: 10px;">
             <input type="text" name="username" placeholder="Choose a username" required style="width: 100%; padding: 8px;">
