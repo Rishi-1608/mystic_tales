@@ -5,9 +5,10 @@
     <div class="character-header">
         <img src="{{ character.avatar }}" alt="{{ character.name }}" class="character-avatar">
         <h2>{{ character.name }}</h2>
-        <a href="{{ url_for('new_story', character=character.name.lower()) }}" class="btn btn-sm btn-fantasy-outline">
-            <i class="fas fa-redo me-1"></i>Restart
-        </a>
+        <a href="{{ url_for('new_story', character=character.code_name) }}" class="restart-btn">
+    Restart Chat
+</a>
+
     </div>
     
     <div class="chat-messages" id="chat-messages">
