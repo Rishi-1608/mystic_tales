@@ -61,7 +61,7 @@ def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if "user_id" not in session:
-            flash("Please log in to continue.")
+            flash("Create Your ID.")
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return wrapper
