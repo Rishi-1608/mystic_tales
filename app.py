@@ -91,6 +91,7 @@ def signup():
             return redirect(url_for("login"))
 
         except UniqueViolation:
+            conn.rollback()
             flash("Username already exists.")
             return redirect(url_for("signup"))
 
