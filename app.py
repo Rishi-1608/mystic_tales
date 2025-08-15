@@ -171,15 +171,18 @@ def fetch_greetings(code_name):
 # Messages storage
 # -----------------------------
 def fetch_messages(character_code, limit=None):
+    user_id = session.get("user_id")
+    if not user_id:
+        return []
     with get_db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             sql = """
                 SELECT sender, text, avatar, created_at
                 FROM messages
-                WHERE character_code = %s
+                WHERE character_code = %s AND user_id = %s
                 ORDER BY created_at ASC
             """
-            params = [character_code]
+            params = [character_code, user_id]
             if limit:
                 sql += " LIMIT %s"
                 params.append(limit)
@@ -188,14 +191,19 @@ def fetch_messages(character_code, limit=None):
             rows = cursor.fetchall()
     return rows
 
+
 def store_message(character_code, sender, text, avatar=None):
+    user_id = session.get("user_id")
+    if not user_id:
+        raise Exception("User not logged in")
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("""
-                INSERT INTO messages (character_code, sender, text, avatar)
-                VALUES (%s, %s, %s, %s)
-            """, (character_code, sender, text, avatar))
+                INSERT INTO messages (character_code, sender, text, avatar, user_id)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (character_code, sender, text, avatar, user_id))
         conn.commit()
+
 
 # -----------------------------
 # Unique code_name generator
@@ -298,27 +306,32 @@ User says: {user_message}
         return jsonify({"error": str(e)}), 500
 
 @app.route('/new_story')
+@login_required
 def new_story():
-    req_character = request.args.get('character', 'eldrin')
+    # Try from query param first, fallback to session
+    req_character = request.args.get('character') or session.get('character')
     characters = fetch_characters()
 
-    # Ensure we only use valid character code_name
-    if req_character not in characters:
-        req_character = 'eldrin'
+    if not req_character or req_character not in characters:
+        return "Character not found", 404
 
-    # Delete all messages for this character_code
+    # Save it back to session for consistency
+    session['character'] = req_character
+
+    # Delete only this user's messages with this character
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(
-                "DELETE FROM messages WHERE character_code = %s",
-                (req_character,)
+                "DELETE FROM messages WHERE character_code = %s AND user_id = %s",
+                (req_character, session.get("user_id"))
             )
         conn.commit()
 
-    # Insert a fresh greeting
+    # Insert a fresh greeting just for this user
     greeting_text = f"*{characters[req_character]['name']} looks at you intently* {fetch_greetings(req_character)}"
     store_message(req_character, req_character, greeting_text, characters[req_character]['avatar'])
 
+    # Redirect back to same character's chat
     return redirect(url_for('chat', character=req_character))
 
 # -----------------------------
